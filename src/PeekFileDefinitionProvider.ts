@@ -23,9 +23,30 @@ export default class PeekFileDefinitionProvider implements vscode.DefinitionProv
       possibleFileNames.push(selectedText + '/index' + ext)
       possibleFileNames.push(altName + ext)
       possibleFileNames.push(altName + '/index' + ext)
+      possibleFileNames = possibleFileNames.concat(this.getPathBasedFilenames(altName, ext))
     })
 
     return possibleFileNames;
+  }
+
+  getPathBasedFilenames(altName, ext) {
+    let possibleFileNames = []
+    let lastReplace = altName.replace(/^([A-Z])/, function($1) {
+        return $1.toLowerCase()
+      })
+    let newReplace = ''
+    while (true) {
+      newReplace = lastReplace.replace(/([^/])([A-Z])/, '$1/$2')
+      newReplace = newReplace.replace(/\/([A-Z][a-z0-9]*)\//, function($1) {
+        return $1.toLowerCase()
+      })
+      if (lastReplace === newReplace) {
+        break;
+      }
+      possibleFileNames.push('**/' + newReplace + ext)
+      lastReplace = newReplace
+    }
+    return possibleFileNames
   }
 
   searchFilePath(fileName: String): Thenable<vscode.Uri[]> {
@@ -37,15 +58,15 @@ export default class PeekFileDefinitionProvider implements vscode.DefinitionProv
     position: vscode.Position,
     token: vscode.CancellationToken
   ): Promise<vscode.Location | vscode.Location[]> {
-    
+
     let filePaths = [];
     const componentNames = this.getComponentName(position);
     const searchPathActions = componentNames.map(this.searchFilePath);
     const searchPromises = Promise.all(searchPathActions); // pass array of promises
-    
+
     return searchPromises.then((paths) => {
       filePaths = [].concat.apply([], paths);
-      
+
       if (filePaths.length) {
         let allPaths = [];
         filePaths.forEach(filePath => {
@@ -57,6 +78,6 @@ export default class PeekFileDefinitionProvider implements vscode.DefinitionProv
       }
     }, (reason) => {
       return undefined;
-    }); 
+    });
   }
 }
